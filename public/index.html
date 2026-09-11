@@ -6,10 +6,23 @@
   <title>FlyWire - Gerçek Konnektom Sinek Simülasyonu</title>
   <style>
     body { margin: 0; overflow: hidden; background: #0a0a0f; color: #fff; font-family: sans-serif; }
-    #overlay { position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 8px; border: 1px solid #333; max-width: 300px; }
+    #overlay { position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 8px; border: 1px solid #333; max-width: 320px; pointer-events: none; }
     h1 { font-size: 14px; margin: 0 0 10px; color: #00ffcc; text-transform: uppercase; }
     .neuron-status { font-family: monospace; font-size: 11px; margin-bottom: 4px; }
     .spike { color: #ff0055; font-weight: bold; }
+    #instruction {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.8);
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 12px;
+      color: #00ffcc;
+      border: 1px solid #333;
+      pointer-events: none;
+    }
   </style>
 
   <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
@@ -28,6 +41,8 @@
     <div id="telemetry">Yükleniyor...</div>
   </div>
 
+  <div id="instruction">💡 Işık kaynağını fareyle basılı tutarak sürükleyebilirsiniz</div>
+
   <script type="module">
     import * as THREE from 'three';
     import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -45,9 +60,9 @@
     const controls = new OrbitControls(camera, renderer.domElement);
 
     scene.add(new THREE.AmbientLight(0x404040));
-    const light = new THREE.DirectionalLight(0xffffff, 1);
-    light.position.set(5, 10, 7);
-    scene.add(light);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    dirLight.position.set(5, 10, 7);
+    scene.add(dirLight);
 
     const grid = new THREE.GridHelper(30, 30, 0x00ffcc, 0x222222);
     scene.add(grid);
@@ -61,14 +76,63 @@
     flyGroup.add(bodyMesh);
     scene.add(flyGroup);
 
+    // 3D Sürüklenebilir Işık Kaynağı (Yem)
     const targetMesh = new THREE.Mesh(
-      new THREE.SphereGeometry(0.3, 16, 16),
+      new THREE.SphereGeometry(0.4, 16, 16),
       new THREE.MeshBasicMaterial({ color: 0xff3300 })
     );
-    targetMesh.position.set(5, 0.3, -3);
+    const pointLight = new THREE.PointLight(0xffaa00, 3, 15);
+    targetMesh.add(pointLight);
+    targetMesh.position.set(5, 0.4, -3);
     scene.add(targetMesh);
 
-    // 3. Veri Yükleme ve Simülasyon Başlatma
+    // Görünmez Zemin Düzlemi (Fareyle sürükleme takibi için)
+    const dragPlane = new THREE.Mesh(
+      new THREE.PlaneGeometry(100, 100),
+      new THREE.MeshBasicMaterial({ visible: false })
+    );
+    dragPlane.rotation.x = -Math.PI / 2;
+    scene.add(dragPlane);
+
+    // 3. Fare ile Işık Sürükleme Kontrolleri
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    let isDragging = false;
+
+    window.addEventListener('pointerdown', (e) => {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObject(targetMesh);
+      
+      if (intersects.length > 0) {
+        isDragging = true;
+        controls.enabled = false;
+      }
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!isDragging) return;
+      
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObject(dragPlane);
+      
+      if (intersects.length > 0) {
+        targetMesh.position.x = intersects[0].point.x;
+        targetMesh.position.z = intersects[0].point.z;
+      }
+    });
+
+    window.addEventListener('pointerup', () => {
+      isDragging = false;
+      controls.enabled = true;
+    });
+
+    // 4. Veri Yükleme ve Simülasyon Başlatma
     let brainEngine = null;
 
     fetch('./flywire_real_subnetwork.json')
@@ -78,7 +142,7 @@
         animate();
       });
 
-    // 4. Animasyon Döngüsü
+    // 5. Animasyon Döngüsü
     const clock = new THREE.Clock();
     const telemetryEl = document.getElementById('telemetry');
 
@@ -87,9 +151,24 @@
       const delta = clock.getDelta();
 
       if (brainEngine) {
-        // Mesafeleri ölç
-        const distL = flyGroup.position.distanceTo(targetMesh.position);
-        const distR = distL; // Basitleştirilmiş göz mesafesi
+        // Dynamic Sol ve Sağ Göz Mesafesi Hesaplama
+        const flyPos = flyGroup.position;
+        const flyAngle = flyGroup.rotation.y;
+
+        const eyeLeftPos = new THREE.Vector3(
+          flyPos.x + Math.sin(flyAngle + 0.4) * 0.4,
+          0.4,
+          flyPos.z + Math.cos(flyAngle + 0.4) * 0.4
+        );
+
+        const eyeRightPos = new THREE.Vector3(
+          flyPos.x + Math.sin(flyAngle - 0.4) * 0.4,
+          0.4,
+          flyPos.z + Math.cos(flyAngle - 0.4) * 0.4
+        );
+
+        const distL = eyeLeftPos.distanceTo(targetMesh.position);
+        const distR = eyeRightPos.distanceTo(targetMesh.position);
 
         // Nöron ağını çalıştır
         const output = brainEngine.step(distL, distR);
@@ -114,6 +193,12 @@
       controls.update();
       renderer.render(scene, camera);
     }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
   </script>
 </body>
 </html>

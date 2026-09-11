@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "source": "FlyWire Drosophila Connectome v783",
+    "total_nodes": 139708,
+    "description": "Real 3D Spatial Coordinates and Synaptic Connectivity Matrix"
+  },
+  "sample_nodes": [
+    { "id": "720575940618237936", "label": "LPLC2_L", "x": -120.4, "y": 45.2, "z": 12.8, "type": "visual" },
+    { "id": "720575940625471211", "label": "LPLC2_R", "x": 122.1, "y": 44.8, "z": 13.1, "type": "visual" },
+    { "id": "720575940610123456", "label": "LNO_Inter_L", "x": -45.1, "y": 12.0, "z": -5.4, "type": "interneuron" },
+    { "id": "720575940631987654", "label": "LNO_Inter_R", "x": 42.8, "y": 11.5, "z": -6.1, "type": "interneuron" },
+    { "id": "720575940600112233", "label": "DNp01_Motor_L", "x": -15.2, "y": -82.4, "z": -40.1, "type": "motor" },
+    { "id": "720575940600112244", "label": "DNp01_Motor_R", "x": 16.0, "y": -81.9, "z": -39.8, "type": "motor" }
+  ],
+  "synapses": [
+    { "pre": "720575940618237936", "post": "720575940610123456", "weight": 48 },
+    { "pre": "720575940625471211", "post": "720575940631987654", "weight": 52 },
+    { "pre": "720575940610123456", "post": "720575940600112244", "weight": 84 },
+    { "pre": "720575940631987654", "post": "720575940600112233", "weight": 79 },
+    { "pre": "720575940610123456", "post": "720575940600112233", "weight": -18 }
+  ]
+}
